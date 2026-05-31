@@ -4,33 +4,34 @@
 #include "FixParser.hpp"
 
 int main() {
-    std::cout << "FixLink-CPP: High-Performance FIX Engine" << std::endl;
+    std::cout << "FixLink-CPP v2.0: Institutional FIX Engine" << std::endl;
 
-    // Example FIX NewOrderSingle (35=D) message
-    // 8=FIX.4.4 | 9=122 | 35=D | 34=215 | 49=CLIENT | 52=20260530-19:00:00 | 56=SERVER | 11=ORDER123 | 21=1 | 55=BTCUSD | 54=1 | 38=100 | 40=2 | 44=74000.50 | 10=171
-    std::string rawFix = "8=FIX.4.4\x01" "9=122\x01" "35=D\x01" "34=215\x01" "49=CLIENT\x01" 
-                         "52=20260530-19:00:00\x01" "56=SERVER\x01" "11=ORDER123\x01" 
-                         "21=1\x01" "55=BTCUSD\x01" "54=1\x01" "38=100\x01" "40=2\x01" 
-                         "44=74000.50\x01" "10=171\x01";
-
-    auto start = std::chrono::high_resolution_clock::now();
-
-    FixLink::FixMessage msg(rawFix);
-
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::micro> elapsed = end - start;
-
-    std::cout << "Parsed FIX message in " << elapsed.count() << " microseconds." << std::endl;
-
-    if (msg.hasField(55)) {
-        std::cout << "Target Symbol (Tag 55): " << msg.getField(55) << std::endl;
-    }
+    // 1. Demonstrate High-Speed Parsing & Validation
+    std::string rawFix = "8=FIX.4.4\x01" "9=122\x01" "35=D\x01" "34=215\x01" "55=BTCUSD\x01" "10=212\x01";
     
-    std::cout << "MsgType (Tag 35): " << msg.getField(35) << std::endl;
-    std::cout << "Price (Tag 44): " << msg.getField(44) << std::endl;
+    FixLink::FixMessage msg(rawFix);
+    bool isValid = msg.validate();
+    
+    std::cout << "[Parser] Message Validated: " << (isValid ? "YES" : "NO") << std::endl;
+    std::cout << "[Parser] Symbol: " << msg.getField(55) << std::endl;
 
-    std::cout << "\nFull Message Breakdown:" << std::endl;
-    msg.debugPrint();
+    // 2. Demonstrate Zero-Copy Builder (No Allocations)
+    char buffer[1024];
+    FixLink::FixBuilder builder(buffer, 1024);
+    
+    auto startBuild = std::chrono::high_resolution_clock::now();
+    
+    builder.addField(8, "FIX.4.4");
+    builder.addInt(35, 68); // 35=D
+    builder.addField(55, "ETHUSD");
+    builder.addInt(38, 500);
+    std::string_view builtMsg = builder.finalize();
+    
+    auto endBuild = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::micro> elapsedBuild = endBuild - startBuild;
+
+    std::cout << "\n[Builder] Constructed FIX message in " << elapsedBuild.count() << " microseconds." << std::endl;
+    std::cout << "[Builder] Output: " << builtMsg << std::endl;
 
     return 0;
 }
